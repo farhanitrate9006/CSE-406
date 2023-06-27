@@ -2,10 +2,11 @@ from BitvectorDemo import *
 
 key = "Thats my Kung Fu"
 plainText = "Two One Nine Two"
-roundConstant = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36]
+roundNumConstant = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36]
 allWords = list()
 totalRounds = 10
 matrixDim = 4
+# AES_modulus = BitVector(bitstring='100011011')
 
 stateMat = [[0 for _ in range(matrixDim)] for _ in range(matrixDim)]
 keyMat = [[0 for _ in range(matrixDim)] for _ in range(matrixDim)]
@@ -46,56 +47,89 @@ def byteSubstitution(word):
         word = word | (sboxSubstitution(byte) << (8*i))
     return word
 
-def addRoundConstant(word, round):
-    word = word ^ (roundConstant[round-1] << 24)
+def addRoundConstant(word, roundNum):
+    word = word ^ (roundNumConstant[roundNum-1] << 24)
     return word
 
-def changeRightmostWord(word, round):
+def changeRightmostWord(word, roundNum):
     word = byteLeftShiftCircular(word)
     word = byteSubstitution(word)
-    word = addRoundConstant(word, round)
+    word = addRoundConstant(word, roundNum)
     return word
 
-def genRoundKey(round):
-    roundToUse = round-1
-    allWords.append(allWords[roundToUse*4] ^ changeRightmostWord(allWords[round*4 - 1], round))
+def genRoundKey(roundNum):
+    roundNumToUse = roundNum-1
+    allWords.append(allWords[roundNumToUse*4] ^ changeRightmostWord(allWords[roundNum*4 - 1], roundNum))
     for i in range(3):
-        allWords.append(allWords[roundToUse*4 + i + 1] ^ allWords[round*4 + i])
+        allWords.append(allWords[roundNumToUse*4 + i + 1] ^ allWords[roundNum*4 + i])
 
 def genAllRoundKeys():
     words = getFourWords(key)
     allWords.extend(words)
 
-    for round in range(1, totalRounds+1):
-        genRoundKey(round)
+    for roundNum in range(1, totalRounds+1):
+        genRoundKey(roundNum)
 
-def fillStateMat():
-    words = getFourWords(plainText)
-
+def fillMat(words, matrix):
     for i in range(matrixDim):
         for j in range(matrixDim):
-            stateMat[j][i] = getByte(words[i], 3-j)
+            matrix[j][i] = getByte(words[i], 3-j)
 
-def fillKeyMat(round):
-    words = allWords[round*4 : round*4 + 4]
-    #print(words)
-
+def substituteMat():
     for i in range(matrixDim):
         for j in range(matrixDim):
-            keyMat[j][i] = getByte(words[i], 3-j)
+            stateMat[i][j] = sboxSubstitution(stateMat[i][j])
 
-def roundZero():
-    fillKeyMat(0)
+def shiftMatRowCircular(row):
+    for _ in range(row):
+        temp = stateMat[row][0]
+        for i in range(matrixDim-1):
+            stateMat[row][i] = stateMat[row][i+1]
+        stateMat[row][matrixDim-1] = temp
+
+def shiftMat():
+    for row in range(1, matrixDim):
+        shiftMatRowCircular(row)
+
+def specialMultiply(a, b):
+    b = BitVector(hexstring=b)
+    return a.gf_multiply_modular(b, AES_modulus, 8).intValue()
+
+def mixColumns():
+    global stateMat
+    resultMat = [[0 for _ in range(matrixDim)] for _ in range(matrixDim)]
+
+    # iterate through rows of X
+    for i in range(matrixDim):
+    # iterate through columns of Y
+        for j in range(matrixDim):
+            # iterate through rows of Y
+            for k in range(matrixDim):
+                # print(Mixer[i][k], hex(stateMat[k][j]))
+                resultMat[i][j] ^= specialMultiply(Mixer[i][k], hex(stateMat[k][j])[2:4])
+
+    stateMat = resultMat
+
+def addRoundKey(roundNum):
+    fillMat(allWords[roundNum*4:roundNum*4 + 4], keyMat)
     for i in range(matrixDim):
         for j in range(matrixDim):
             stateMat[i][j] = stateMat[i][j] ^ keyMat[i][j]
 
-genAllRoundKeys()
-# for word in allWords:
-#     print(hex(word))
+def runRounds(roundNum):
+    if roundNum != 0:
+        substituteMat()
+        shiftMat()
+        if roundNum != totalRounds:
+            mixColumns()
+    
+    addRoundKey(roundNum)
 
-fillStateMat()
-roundZero()
+genAllRoundKeys()
+fillMat(getFourWords(plainText), stateMat)
+for roundNum in range(totalRounds+1):
+    runRounds(roundNum)
+    
 for i in range(matrixDim):
     for j in range(matrixDim):
         print(hex(stateMat[i][j]), end=" ")
