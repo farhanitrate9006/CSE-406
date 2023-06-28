@@ -1,7 +1,7 @@
 from BitvectorDemo import *
 
-key = "Thats my Kung Fu"
-plainText = "Two One Nine Two"
+key = "BUET CSE18 Batch"
+plainText = "Can They Do This"
 roundNumConstant = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36]
 allWords = list()
 totalRounds = 10
@@ -125,12 +125,13 @@ def runRounds(roundNum):
     
     addRoundKey(roundNum)
 
-genAllRoundKeys()
-fillMat(getFourWords(plainText), stateMat)
-for roundNum in range(totalRounds+1):
-    runRounds(roundNum)
-    
-for i in range(matrixDim):
-    for j in range(matrixDim):
-        print(hex(stateMat[i][j]), end=" ")
-    print()
+if __name__ == "__main__":
+    genAllRoundKeys()
+    fillMat(getFourWords(plainText), stateMat)
+    for roundNum in range(totalRounds+1):
+        runRounds(roundNum)
+        
+    for i in range(matrixDim):
+        for j in range(matrixDim):
+            print(hex(stateMat[i][j]), end=" ")
+        print()
