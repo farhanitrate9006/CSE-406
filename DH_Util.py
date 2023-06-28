@@ -5,24 +5,11 @@ import random
 # modular exponentiation.
 # It returns (x^y) % p
 def modularExp(x, y, p):
-	# Initialize result
-    res = 1;
-     
-    # Update x if it is more than or
-    # equal to p
-    x = x % p;
-    while (y > 0):
-         
-        # If y is odd, multiply
-        # x with result
-        if (y & 1):
-            res = (res * x) % p;
- 
-        # y must be even now
-        y = y>>1; # y = y/2
-        x = (x * x) % p;
-     
-    return res;
+	if (y == 0):
+		return 1;
+	elif (y % 2 == 0):
+		return modularExp((x * x) % p, y // 2, p)
+	return (x * modularExp((x * x) % p, (y - 1) // 2, p)) % p
 
 # This function is called
 # for all k trials. It returns
